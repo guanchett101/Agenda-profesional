@@ -1,0 +1,20 @@
+nohup: no se tendrá en cuenta la entrada
+INFO:     Will watch for changes in these directories: ['/home/mint5/Escritorio/web project/agenda-profesional']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [37028] using StatReload
+INFO:     Started server process [37032]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:50304 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57486 - "GET /tareas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56846 - "POST /tareas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39534 - "GET /tareas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39536 - "GET /tareas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33148 - "OPTIONS /tareas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33148 - "POST /tareas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33148 - "GET /tareas HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [37032]
+INFO:     Stopping reloader process [37028]
