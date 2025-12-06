@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 const API_URL = import.meta.env.VITE_API_URL || 
   (window.location.hostname === 'localhost' 
     ? `http://${window.location.hostname}:8000`
-    : window.location.origin); // En producción usa variable de entorno o mismo dominio
+    : `${window.location.origin}/api`); // En producción usa /api como prefijo
 
 interface Tarea {
   id?: number;
