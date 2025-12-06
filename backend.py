@@ -147,9 +147,34 @@ def marcar_completada(tarea_id: int):
     db.close()
     return tarea
 
+# Migración automática de base de datos
+def migrate_database():
+    """Agrega la columna recordatorio si no existe"""
+    import sqlite3
+    conn = sqlite3.connect('./agenda.db')
+    cursor = conn.cursor()
+    try:
+        # Verificar si la columna recordatorio existe
+        cursor.execute("PRAGMA table_info(tareas)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'recordatorio' not in columns:
+            print("🔄 Migrando base de datos: agregando columna 'recordatorio'...")
+            cursor.execute("ALTER TABLE tareas ADD COLUMN recordatorio INTEGER DEFAULT 0")
+            conn.commit()
+            print("✅ Migración completada")
+    except Exception as e:
+        print(f"⚠️  Error en migración: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
 # Datos de ejemplo al iniciar
 @app.on_event("startup")
 def startup_event():
+    # Ejecutar migración
+    migrate_database()
+    
     db = SessionLocal()
     if db.query(TareaDB).count() == 0:
         tareas_ejemplo = [
@@ -158,21 +183,24 @@ def startup_event():
                 descripcion="Revisar avances del proyecto",
                 fecha="2025-12-01",
                 hora="10:00",
-                prioridad="alta"
+                prioridad="alta",
+                recordatorio=0
             ),
             TareaDB(
                 titulo="Enviar informe mensual",
                 descripcion="Preparar y enviar el informe de noviembre",
                 fecha="2025-12-01",
                 hora="15:00",
-                prioridad="media"
+                prioridad="media",
+                recordatorio=0
             ),
             TareaDB(
                 titulo="Llamar al cliente",
                 descripcion="Seguimiento del proyecto X",
                 fecha="2025-12-02",
                 hora="09:00",
-                prioridad="alta"
+                prioridad="alta",
+                recordatorio=0
             )
         ]
         db.add_all(tareas_ejemplo)

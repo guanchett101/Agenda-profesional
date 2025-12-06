@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API</title>
+</head>
+<body>
+    <h1>Test Crear Tarea</h1>
+    <button onclick="crearTarea()">Crear Tarea de Prueba</button>
+    <div id="resultado"></div>
+
+    <script>
+        async function crearTarea() {
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = 'Creando...';
+            
+            try {
+                const res = await fetch('http://localhost:8000/tareas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        titulo: 'Test desde HTML',
+                        descripcion: 'Prueba',
+                        fecha: '2024-12-07',
+                        hora: '15:00',
+                        completada: false,
+                        prioridad: 'media',
+                        recordatorio: 0
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    resultado.innerHTML = 'Tarea creada: ' + JSON.stringify(data);
+                } else {
+                    resultado.innerHTML = 'Error: ' + res.status;
+                }
+            } catch (error) {
+                resultado.innerHTML = 'Error de red: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

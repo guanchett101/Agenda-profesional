@@ -38,28 +38,47 @@ export default function App() {
 
   const crearTarea = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar que tenga título y fecha
+    if (!nuevaTarea.titulo || !nuevaTarea.fecha) {
+      alert('Por favor completa título y fecha');
+      return;
+    }
+    
     console.log('Creando tarea:', nuevaTarea);
+    console.log('URL API:', API_URL);
+    
     try {
-      const res = await fetch(`${API_URL}/tareas`, {
+      const url = `${API_URL}/tareas`;
+      console.log('Enviando a:', url);
+      
+      const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nuevaTarea)
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(nuevaTarea),
+        mode: 'cors'
       });
-      console.log('Respuesta:', res.status, res.ok);
+      
+      console.log('Respuesta recibida:', res.status, res.ok);
+      
       if (res.ok) {
         const data = await res.json();
-        console.log('Tarea creada:', data);
+        console.log('Tarea creada exitosamente:', data);
         await cargarTareas();
         setNuevaTarea({ titulo: '', descripcion: '', fecha: '', hora: '', completada: false, prioridad: 'media', recordatorio: 0 });
         setMostrarModal(false);
+        alert('¡Tarea creada con éxito!');
       } else {
         const error = await res.text();
         console.error('Error del servidor:', error);
         alert('Error al crear tarea: ' + error);
       }
-    } catch (error) {
-      console.error('Error de red:', error);
-      alert('Error de conexión: ' + error);
+    } catch (error: any) {
+      console.error('Error completo:', error);
+      alert('Error de conexión: ' + error.message + '\nVerifica que el backend esté corriendo en ' + API_URL);
     }
   };
 
