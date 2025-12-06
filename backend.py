@@ -1,12 +1,15 @@
 # Backend - Agenda Profesional con Base de Datos
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
 
 # Configuración de la base de datos
 DATABASE_URL = "sqlite:///./agenda.db"
@@ -146,6 +149,22 @@ def marcar_completada(tarea_id: int):
     db.refresh(tarea)
     db.close()
     return tarea
+
+# Servir archivos estáticos del frontend (solo en producción)
+if os.path.exists("./frontend/dist"):
+    app.mount("/assets", StaticFiles(directory="./frontend/dist/assets"), name="assets")
+    
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Servir el frontend en producción"""
+        if full_path.startswith("tareas"):
+            # Si es una ruta de API, dejar que FastAPI la maneje
+            raise HTTPException(status_code=404)
+        
+        file_path = f"./frontend/dist/{full_path}"
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse("./frontend/dist/index.html")
 
 # Migración automática de base de datos
 def migrate_database():
