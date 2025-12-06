@@ -24,6 +24,7 @@ class TareaDB(Base):
     hora = Column(String)
     completada = Column(Boolean, default=False)
     prioridad = Column(String, default="media")  # baja, media, alta
+    recordatorio = Column(Integer, default=0)  # minutos antes (0=sin recordatorio, 15, 30, 60)
     creada_en = Column(DateTime, default=datetime.now)
 
 # Crear las tablas
@@ -38,6 +39,7 @@ class Tarea(BaseModel):
     hora: Optional[str] = ""
     completada: bool = False
     prioridad: str = "media"
+    recordatorio: int = 0
 
 # Crear la aplicación
 app = FastAPI(title="Agenda Profesional API")
@@ -85,7 +87,8 @@ def crear_tarea(tarea: Tarea):
         fecha=tarea.fecha,
         hora=tarea.hora,
         completada=tarea.completada,
-        prioridad=tarea.prioridad
+        prioridad=tarea.prioridad,
+        recordatorio=tarea.recordatorio
     )
     db.add(db_tarea)
     db.commit()
@@ -108,6 +111,7 @@ def actualizar_tarea(tarea_id: int, tarea: Tarea):
     db_tarea.hora = tarea.hora
     db_tarea.completada = tarea.completada
     db_tarea.prioridad = tarea.prioridad
+    db_tarea.recordatorio = tarea.recordatorio
     
     db.commit()
     db.refresh(db_tarea)
