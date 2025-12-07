@@ -12,16 +12,8 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # Configuración de la base de datos
-import os
-
-# Usar PostgreSQL en producción, SQLite en desarrollo
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agenda.db")
-
-# PostgreSQL requiere psycopg2, SQLite no necesita check_same_thread
-if DATABASE_URL.startswith("postgresql"):
-    engine = create_engine(DATABASE_URL)
-else:
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = "sqlite:///./agenda.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -68,11 +60,10 @@ app.add_middleware(
 
 @app.get("/")
 def inicio():
-    db_type = "PostgreSQL" if DATABASE_URL.startswith("postgresql") else "SQLite"
     return {
         "mensaje": "API de Agenda Profesional funcionando",
-        "base_de_datos": db_type,
-        "url_oculta": DATABASE_URL[:20] + "..." if len(DATABASE_URL) > 20 else DATABASE_URL
+        "base_de_datos": "SQLite (efímera - datos se pierden al reiniciar)",
+        "nota": "Para datos persistentes, considera el plan Starter de Render ($7/mes)"
     }
 
 @app.get("/tareas", response_model=List[Tarea])
@@ -181,28 +172,25 @@ if os.path.exists("./frontend/dist"):
 
 # Migración automática de base de datos
 def migrate_database():
-    """Agrega la columna recordatorio si no existe (solo para SQLite)"""
-    if not DATABASE_URL.startswith("postgresql"):
-        import sqlite3
-        conn = sqlite3.connect('./agenda.db')
-        cursor = conn.cursor()
-        try:
-            # Verificar si la columna recordatorio existe
-            cursor.execute("PRAGMA table_info(tareas)")
-            columns = [column[1] for column in cursor.fetchall()]
-            
-            if 'recordatorio' not in columns:
-                print("🔄 Migrando base de datos: agregando columna 'recordatorio'...")
-                cursor.execute("ALTER TABLE tareas ADD COLUMN recordatorio INTEGER DEFAULT 0")
-                conn.commit()
-                print("✅ Migración completada")
-        except Exception as e:
-            print(f"⚠️  Error en migración: {e}")
-            conn.rollback()
-        finally:
-            conn.close()
-    else:
-        print("✅ Usando PostgreSQL - migración no necesaria")
+    """Agrega la columna recordatorio si no existe"""
+    import sqlite3
+    conn = sqlite3.connect('./agenda.db')
+    cursor = conn.cursor()
+    try:
+        # Verificar si la columna recordatorio existe
+        cursor.execute("PRAGMA table_info(tareas)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'recordatorio' not in columns:
+            print("🔄 Migrando base de datos: agregando columna 'recordatorio'...")
+            cursor.execute("ALTER TABLE tareas ADD COLUMN recordatorio INTEGER DEFAULT 0")
+            conn.commit()
+            print("✅ Migración completada")
+    except Exception as e:
+        print(f"⚠️  Error en migración: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 # Datos de ejemplo al iniciar
 @app.on_event("startup")
