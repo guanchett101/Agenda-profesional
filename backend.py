@@ -68,7 +68,12 @@ app.add_middleware(
 
 @app.get("/")
 def inicio():
-    return {"mensaje": "API de Agenda Profesional funcionando"}
+    db_type = "PostgreSQL" if DATABASE_URL.startswith("postgresql") else "SQLite"
+    return {
+        "mensaje": "API de Agenda Profesional funcionando",
+        "base_de_datos": db_type,
+        "url_oculta": DATABASE_URL[:20] + "..." if len(DATABASE_URL) > 20 else DATABASE_URL
+    }
 
 @app.get("/tareas", response_model=List[Tarea])
 def obtener_tareas():
