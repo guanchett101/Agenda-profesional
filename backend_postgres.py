@@ -1,8 +1,6 @@
-# Backend - Agenda Profesional con Base de Datos
+# Backend - Agenda Profesional con PostgreSQL
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -12,16 +10,19 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # Configuración de la base de datos
-import os
+# Usa PostgreSQL en producción, SQLite en desarrollo
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///./agenda.db')
 
-# Usar PostgreSQL en producción, SQLite en desarrollo
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agenda.db")
+# Fix para Render: cambiar postgres:// a postgresql://
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# PostgreSQL requiere psycopg2, SQLite no necesita check_same_thread
-if DATABASE_URL.startswith("postgresql"):
+# Configuración del engine
+if DATABASE_URL.startswith('postgresql://'):
     engine = create_engine(DATABASE_URL)
 else:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -34,8 +35,8 @@ class TareaDB(Base):
     fecha = Column(String, nullable=False)
     hora = Column(String)
     completada = Column(Boolean, default=False)
-    prioridad = Column(String, default="media")  # baja, media, alta
-    recordatorio = Column(Integer, default=0)  # minutos antes (0=sin recordatorio, 15, 30, 60)
+    prioridad = Column(String, default="media")
+    recordatorio = Column(Integer, default=0)
     creada_en = Column(DateTime, default=datetime.now)
 
 # Crear las tablas
@@ -55,7 +56,7 @@ class Tarea(BaseModel):
 # Crear la aplicación
 app = FastAPI(title="Agenda Profesional API")
 
-# Configurar CORS para red local
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -68,11 +69,10 @@ app.add_middleware(
 
 @app.get("/")
 def inicio():
-    return {"mensaje": "API de Agenda Profesional funcionando"}
+    return {"mensaje": "API de Agenda Profesional funcionando", "database": "PostgreSQL" if DATABASE_URL.startswith('postgresql://') else "SQLite"}
 
 @app.get("/tareas", response_model=List[Tarea])
 def obtener_tareas():
-    """Obtener todas las tareas"""
     db = SessionLocal()
     tareas = db.query(TareaDB).order_by(TareaDB.fecha, TareaDB.hora).all()
     db.close()
@@ -80,7 +80,6 @@ def obtener_tareas():
 
 @app.get("/tareas/{tarea_id}", response_model=Tarea)
 def obtener_tarea(tarea_id: int):
-    """Obtener una tarea específica"""
     db = SessionLocal()
     tarea = db.query(TareaDB).filter(TareaDB.id == tarea_id).first()
     db.close()
@@ -90,7 +89,6 @@ def obtener_tarea(tarea_id: int):
 
 @app.post("/tareas", response_model=Tarea)
 def crear_tarea(tarea: Tarea):
-    """Crear una nueva tarea"""
     db = SessionLocal()
     db_tarea = TareaDB(
         titulo=tarea.titulo,
@@ -109,7 +107,6 @@ def crear_tarea(tarea: Tarea):
 
 @app.put("/tareas/{tarea_id}", response_model=Tarea)
 def actualizar_tarea(tarea_id: int, tarea: Tarea):
-    """Actualizar una tarea existente"""
     db = SessionLocal()
     db_tarea = db.query(TareaDB).filter(TareaDB.id == tarea_id).first()
     if not db_tarea:
@@ -131,7 +128,6 @@ def actualizar_tarea(tarea_id: int, tarea: Tarea):
 
 @app.delete("/tareas/{tarea_id}")
 def eliminar_tarea(tarea_id: int):
-    """Eliminar una tarea"""
     db = SessionLocal()
     tarea = db.query(TareaDB).filter(TareaDB.id == tarea_id).first()
     if not tarea:
@@ -145,7 +141,6 @@ def eliminar_tarea(tarea_id: int):
 
 @app.patch("/tareas/{tarea_id}/completar")
 def marcar_completada(tarea_id: int):
-    """Marcar tarea como completada/pendiente"""
     db = SessionLocal()
     tarea = db.query(TareaDB).filter(TareaDB.id == tarea_id).first()
     if not tarea:
@@ -158,81 +153,25 @@ def marcar_completada(tarea_id: int):
     db.close()
     return tarea
 
-# Servir archivos estáticos del frontend (solo en producción)
-if os.path.exists("./frontend/dist"):
-    app.mount("/assets", StaticFiles(directory="./frontend/dist/assets"), name="assets")
-    
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        """Servir el frontend en producción"""
-        if full_path.startswith("tareas"):
-            # Si es una ruta de API, dejar que FastAPI la maneje
-            raise HTTPException(status_code=404)
-        
-        file_path = f"./frontend/dist/{full_path}"
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse("./frontend/dist/index.html")
-
-# Migración automática de base de datos
-def migrate_database():
-    """Agrega la columna recordatorio si no existe (solo para SQLite)"""
-    if not DATABASE_URL.startswith("postgresql"):
-        import sqlite3
-        conn = sqlite3.connect('./agenda.db')
-        cursor = conn.cursor()
-        try:
-            # Verificar si la columna recordatorio existe
-            cursor.execute("PRAGMA table_info(tareas)")
-            columns = [column[1] for column in cursor.fetchall()]
-            
-            if 'recordatorio' not in columns:
-                print("🔄 Migrando base de datos: agregando columna 'recordatorio'...")
-                cursor.execute("ALTER TABLE tareas ADD COLUMN recordatorio INTEGER DEFAULT 0")
-                conn.commit()
-                print("✅ Migración completada")
-        except Exception as e:
-            print(f"⚠️  Error en migración: {e}")
-            conn.rollback()
-        finally:
-            conn.close()
-    else:
-        print("✅ Usando PostgreSQL - migración no necesaria")
-
-# Datos de ejemplo al iniciar
+# Datos de ejemplo al iniciar (solo si la BD está vacía)
 @app.on_event("startup")
 def startup_event():
-    # Ejecutar migración
-    migrate_database()
-    
     db = SessionLocal()
     if db.query(TareaDB).count() == 0:
+        print("📝 Base de datos vacía, agregando tareas de ejemplo...")
         tareas_ejemplo = [
             TareaDB(
-                titulo="Reunión de equipo",
-                descripcion="Revisar avances del proyecto",
-                fecha="2025-12-01",
+                titulo="Bienvenido a AGENDA IGARA",
+                descripcion="Esta es una tarea de ejemplo. Puedes editarla o eliminarla.",
+                fecha="2024-12-10",
                 hora="10:00",
                 prioridad="alta",
-                recordatorio=0
-            ),
-            TareaDB(
-                titulo="Enviar informe mensual",
-                descripcion="Preparar y enviar el informe de noviembre",
-                fecha="2025-12-01",
-                hora="15:00",
-                prioridad="media",
-                recordatorio=0
-            ),
-            TareaDB(
-                titulo="Llamar al cliente",
-                descripcion="Seguimiento del proyecto X",
-                fecha="2025-12-02",
-                hora="09:00",
-                prioridad="alta",
-                recordatorio=0
+                recordatorio=15
             )
         ]
         db.add_all(tareas_ejemplo)
         db.commit()
+        print("✅ Tareas de ejemplo agregadas")
+    else:
+        print(f"✅ Base de datos cargada con {db.query(TareaDB).count()} tareas")
     db.close()
