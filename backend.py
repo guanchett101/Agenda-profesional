@@ -12,8 +12,17 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # Configuración de la base de datos
-DATABASE_URL = "sqlite:///./agenda.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+import os
+
+# Railway proporciona DATABASE_URL automáticamente
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agenda.db")
+
+# Ajustar para PostgreSQL o SQLite
+if DATABASE_URL.startswith("postgresql"):
+    # Railway usa postgresql://, SQLAlchemy necesita postgresql://
+    engine = create_engine(DATABASE_URL.replace("postgresql://", "postgresql://", 1))
+else:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -60,10 +69,11 @@ app.add_middleware(
 
 @app.get("/")
 def inicio():
+    db_type = "PostgreSQL (persistente)" if DATABASE_URL.startswith("postgresql") else "SQLite (local)"
     return {
-        "mensaje": "API de Agenda Profesional funcionando",
-        "base_de_datos": "SQLite (efímera - datos se pierden al reiniciar)",
-        "nota": "Para datos persistentes, considera el plan Starter de Render ($7/mes)"
+        "mensaje": "API de Agenda IGARA funcionando",
+        "base_de_datos": db_type,
+        "plataforma": "Railway" if DATABASE_URL.startswith("postgresql") else "Local"
     }
 
 @app.get("/tareas", response_model=List[Tarea])
@@ -172,25 +182,27 @@ if os.path.exists("./frontend/dist"):
 
 # Migración automática de base de datos
 def migrate_database():
-    """Agrega la columna recordatorio si no existe"""
-    import sqlite3
-    conn = sqlite3.connect('./agenda.db')
-    cursor = conn.cursor()
-    try:
-        # Verificar si la columna recordatorio existe
-        cursor.execute("PRAGMA table_info(tareas)")
-        columns = [column[1] for column in cursor.fetchall()]
-        
-        if 'recordatorio' not in columns:
-            print("🔄 Migrando base de datos: agregando columna 'recordatorio'...")
-            cursor.execute("ALTER TABLE tareas ADD COLUMN recordatorio INTEGER DEFAULT 0")
-            conn.commit()
-            print("✅ Migración completada")
-    except Exception as e:
-        print(f"⚠️  Error en migración: {e}")
-        conn.rollback()
-    finally:
-        conn.close()
+    """Agrega la columna recordatorio si no existe (solo SQLite)"""
+    if not DATABASE_URL.startswith("postgresql"):
+        import sqlite3
+        conn = sqlite3.connect('./agenda.db')
+        cursor = conn.cursor()
+        try:
+            cursor.execute("PRAGMA table_info(tareas)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'recordatorio' not in columns:
+                print("🔄 Migrando base de datos SQLite...")
+                cursor.execute("ALTER TABLE tareas ADD COLUMN recordatorio INTEGER DEFAULT 0")
+                conn.commit()
+                print("✅ Migración SQLite completada")
+        except Exception as e:
+            print(f"⚠️  Error en migración: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+    else:
+        print("✅ Usando PostgreSQL en Railway")
 
 # Datos de ejemplo al iniciar
 @app.on_event("startup")
