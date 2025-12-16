@@ -1,0 +1,17 @@
+name: agenda-igara
+type: web
+build:
+  buildpack: python
+  command: pip install -r requirements.txt && cd frontend && npm install && npm run build && cd ..
+run:
+  command: uvicorn server:app --host 0.0.0.0 --port $PORT
+ports:
+  - port: 8000
+    protocol: http
+env:
+  - name: PORT
+    value: "8000"
+regions:
+  - fra
+instance:
+  type: free
