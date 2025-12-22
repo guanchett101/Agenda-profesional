@@ -16,5 +16,14 @@ export interface Tarea {
   completada: boolean;
   prioridad: 'baja' | 'media' | 'alta';
   recordatorio: number;
+  user_id?: number;
+  created_at?: string;
+}
+
+export interface Usuario {
+  id: number;
+  username: string;
+  password: string;
+  es_admin: boolean;
   created_at?: string;
 }
